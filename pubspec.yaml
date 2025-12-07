@@ -37,6 +37,7 @@ dependencies:
   # Firebase paketleri
   firebase_core: ^3.7.0
   firebase_analytics: ^11.0.0
+  firebase_auth: ^5.7.0
 
 dev_dependencies:
   flutter_test:
