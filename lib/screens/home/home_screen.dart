@@ -6,10 +6,9 @@ import 'package:akilli_kampus_proje/services/auth_service.dart';
 /// Kullanıcı giriş yaptıktan sonra yönlendirilen ekrandır.
 /// Bu ekranda
 /// - Kullanıcının email adresi gösterilir.
-/// - Menü butonları burada bulunur.
-/// - Bildirim akışı / harita / bildirim oluşturma / profil gibi
-///   diğer ekranlara yönlendirme yapılır.
-/// - Üst sağ köşede çıkış butonu yer alır.
+/// - Menü butonları bulunur.
+/// - Bildirim akışı / harita / bildirim oluşturma / profil gibi ekranlara geçilir.
+/// - Sağ üstte çıkış var
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -41,9 +40,11 @@ class HomeScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            /// KULLANICI KARŞILAMA METNİ
+            /// 📌 Hoş geldin yazısı — satır kaymasını önledik
             Text(
-              "Hoş geldin,\n${user?.email ?? 'Kullanıcı'}",
+              "Hoş geldin, ${user?.email ?? 'Kullanıcı'}",
+              maxLines: 1, // ✔ Tek satır ile sınırla
+              overflow: TextOverflow.ellipsis, // ✔ Taşınca ... ile göster
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -53,11 +54,10 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(height: 30),
 
             /// ANA MENÜ BUTONLARI
-
             _menuButton(
               context,
               title: "📢 Bildirim Akışı",
-              route: "/home", // yönlendirme yapılmasını sağlar
+              route: "/home",
             ),
 
             _menuButton(
@@ -69,13 +69,13 @@ class HomeScreen extends StatelessWidget {
             _menuButton(
               context,
               title: "➕ Yeni Bildirim Oluştur",
-              route: "/report", // Bildirim oluşturma ekranı
+              route: "/report",
             ),
 
             _menuButton(
               context,
               title: "👤 Profil",
-              route: "/profile", // Profil ekranı
+              route: "/profile",
             ),
           ],
         ),
@@ -83,7 +83,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  ///  Menü Butonu Oluşturan Yardımcı Widget
+  /// 📌 Menü Butonu Oluşturan Widget
   Widget _menuButton(BuildContext context,
       {required String title, required String route}) {
     return Padding(
@@ -92,12 +92,18 @@ class HomeScreen extends StatelessWidget {
         onPressed: () {
           Navigator.pushNamed(context, route);
         },
+
+        /// ⭐ YENİ BUTON TASARIMI BURADA
         style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          backgroundColor: Colors.deepPurpleAccent.withOpacity(0.1),
+          foregroundColor: Colors.black87,
+          elevation: 0, // gölgeyi kaldır
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
         ),
+
         child: Text(
           title,
           style: const TextStyle(fontSize: 18),
@@ -106,4 +112,3 @@ class HomeScreen extends StatelessWidget {
     );
   }
 }
-

@@ -1,18 +1,11 @@
 import 'package:flutter/material.dart';
-
-/// **********************************************************************
+import 'package:akilli_kampus_proje/services/auth_service.dart';
 ///  RESET PASSWORD SCREEN (Şifre Sıfırlama Ekranı)
-/// **********************************************************************
 /// Bu ekran, şifresini unutan kullanıcıların e-posta adreslerini girerek
 /// "Şifre sıfırlama maili" talep etmelerini sağlar.
-///
-/// Firebase Authentication kullanıldığında:
+/// Firebase Authentication ile:
 ///   FirebaseAuth.instance.sendPasswordResetEmail(email: ...)
 /// fonksiyonu ile kullanıcıya e-posta gönderilecektir.
-///
-/// Şu anki hali taslak ekran tasarımıdır, Firebase işlemleri daha sonra
-/// AuthService içerisine eklenecektir.
-/// **********************************************************************
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
@@ -23,8 +16,24 @@ class ResetPasswordScreen extends StatefulWidget {
 
 class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
-  /// Kullanıcının yazdığı e-posta değerini almak için controller
+  /// Kullanıcının yazdığı e-posta değerini almak için kontroller
   final TextEditingController emailController = TextEditingController();
+
+  bool loading = false;
+
+  /// Firebase hata kodlarını Türkçeye çeviren fonksiyon
+  String getErrorMessage(String code) {
+    switch (code) {
+      case "user-not-found":
+        return "Bu e-posta ile kayıtlı kullanıcı bulunamadı.";
+      case "invalid-email":
+        return "Geçersiz e-posta adresi.";
+      case "network-request-failed":
+        return "İnternet bağlantı hatası.";
+      default:
+        return "Bir hata oluştu. ($code)";
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,11 +51,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
               children: [
 
-                /// --------------------------------------------------------------
-                ///  BAŞLIK — ŞİFRE SIFIRLA
-                /// --------------------------------------------------------------
+                ///  BAŞLIK — ŞİFRE SIFIRLA-
                 const Text(
-                  "Şifre Sıfırla",
+                  "Şifreyi Sıfırla",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 32,
@@ -56,11 +63,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
                 const SizedBox(height: 30),
 
-                /// --------------------------------------------------------------
                 ///  E-POSTA GİRİŞ ALANI
-                /// --------------------------------------------------------------
                 /// Kullanıcı şifre sıfırlama maili almak için e-posta adresini girer.
-                /// Firebase tarafında sadece e-posta yeterlidir.
+                /// Firebase tarafında sadece e-posta yeterli oluyor
                 TextField(
                   controller: emailController,
                   decoration: const InputDecoration(
@@ -71,14 +76,41 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
                 const SizedBox(height: 20),
 
-                /// --------------------------------------------------------------
                 ///  ŞİFRE SIFIRLAMA BUTONU
-                /// --------------------------------------------------------------
-                /// Şu anda sadece mesaj yazdırır.
-                /// Firebase bağlanınca AuthService içindeki fonksiyon çağrılacak.
+                /// Firebase ile AuthService içindeki fonksiyon çağrılacak.
                 ElevatedButton(
-                  onPressed: () {
-                    print("📩 Şifre sıfırlama maili gönderilecek → ${emailController.text}");
+                  onPressed: loading
+                      ? null
+                      : () async {
+                    if (emailController.text.trim().isEmpty) {
+                      _showMessage(context, "Lütfen e-posta adresi giriniz.");
+                      return;
+                    }
+                    /// basit email format kontrolü
+                    if (!emailController.text.contains("@")) {
+                      _showMessage(context, "Lütfen geçerli bir e-posta girin.");
+                      return;
+                    }
+
+                    setState(() => loading = true);
+
+                    bool result = await AuthService()
+                        .resetPassword(emailController.text.trim());
+
+                    setState(() => loading = false);
+
+                    if (result) {
+                      _showMessage(
+                          context,
+                          "📩 Şifre sıfırlama maili gönderildi!\n"
+                              "Lütfen gelen kutunuzu kontrol edin."
+                      );
+                    } else {
+                      _showMessage(
+                          context,
+                          "❌ İşlem başarısız! E-posta adresini kontrol edin."
+                      );
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -88,7 +120,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       borderRadius: BorderRadius.circular(18),
                     ),
                   ),
-                  child: const Text(
+                  child: loading
+                      ? const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.black,
+                      strokeWidth: 2,
+                    ),
+                  )
+                      : const Text(
                     "Mail Gönder",
                     style: TextStyle(fontSize: 18),
                   ),
@@ -96,9 +137,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
                 const SizedBox(height: 20),
 
-                /// --------------------------------------------------------------
-                ///  GİRİŞ EKRANINA GERİ DÖNÜŞ
-                /// --------------------------------------------------------------
+                ///  GİRİŞ EKRANINA GERİ DÖNÜŞ İÇİN
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -129,3 +168,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     );
   }
 }
+/// Basit mesaj gösteren fonksiyon (AlertDialog yerine SnackBar)
+void _showMessage(BuildContext context, String msg) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(msg),
+      behavior: SnackBarBehavior.floating,
+    ),
+  );
+}
+

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -11,8 +13,60 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController =
-  TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
+
+  bool loading = false; //  Butonun dönme animasyonu için
+
+  final AuthService _authService = AuthService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  /// KULLANICI KAYIT FONKSİYONU
+  Future<void> registerUser() async {
+    final name = nameController.text.trim();
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+    final confirmPassword = confirmPasswordController.text.trim();
+
+    if (name.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+      showMessage("Lütfen tüm alanları doldurun.");
+      return;
+    }
+
+    if (password != confirmPassword) {
+      showMessage("Şifreler uyuşmuyor!");
+      return;
+    }
+
+    setState(() => loading = true);
+
+    final user = await _authService.signUp(email, password);
+
+    if (user != null) {
+      // Firestore’a isim + email kaydı
+      await _firestore.collection("users").doc(user.uid).set({
+        "name": name,
+        "email": email,
+        "createdAt": DateTime.now(),
+      });
+
+      showMessage("Kayıt başarılı! Giriş ekranına yönlendiriliyorsunuz...");
+
+      await Future.delayed(const Duration(seconds: 1));
+
+      Navigator.pushReplacementNamed(context, '/login');
+    } else {
+      showMessage("Kayıt başarısız! Bu e-posta zaten kullanılıyor olabilir.");
+    }
+
+    setState(() => loading = false);
+  }
+
+  /// Snackbar mesaj fonksiyonu
+  void showMessage(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,19 +79,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                /// 📌 Başlık
+
                 const Text(
                   "Kayıt Ol",
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
                 ),
 
                 const SizedBox(height: 30),
 
-                /// 📌 Ad Soyad
                 TextField(
                   controller: nameController,
                   decoration: const InputDecoration(
@@ -45,9 +95,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     border: OutlineInputBorder(),
                   ),
                 ),
+
                 const SizedBox(height: 16),
 
-                /// 📌 Email
                 TextField(
                   controller: emailController,
                   decoration: const InputDecoration(
@@ -55,9 +105,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     border: OutlineInputBorder(),
                   ),
                 ),
+
                 const SizedBox(height: 16),
 
-                /// 📌 Şifre
                 TextField(
                   controller: passwordController,
                   obscureText: true,
@@ -66,9 +116,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     border: OutlineInputBorder(),
                   ),
                 ),
+
                 const SizedBox(height: 16),
 
-                /// 📌 Şifre Tekrar
                 TextField(
                   controller: confirmPasswordController,
                   obscureText: true,
@@ -80,23 +130,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 const SizedBox(height: 20),
 
-                /// 📌 Kaydol Butonu
                 ElevatedButton(
-                  onPressed: () {
-                    print("Kayıt ekranı -> Firebase bağlanınca çalışacak");
-                  },
+                  onPressed: loading ? null : registerUser,
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: const Text(
-                    "Kaydol",
-                    style: TextStyle(fontSize: 18),
-                  ),
+                      padding: const EdgeInsets.symmetric(vertical: 16)),
+                  child: loading
+                      ? const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                  )
+                      : const Text("Kaydol", style: TextStyle(fontSize: 18)),
                 ),
 
                 const SizedBox(height: 20),
 
-                /// 📌 Giriş Yap linki
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -106,10 +154,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       onTap: () => Navigator.pushNamed(context, '/login'),
                       child: const Text(
                         "Giriş Yap",
-                        style: TextStyle(
-                          color: Colors.blue,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                       ),
                     )
                   ],

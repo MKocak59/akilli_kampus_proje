@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/auth_service.dart';
 
-/// **********************************************************************
-///  LOGIN SCREEN (Giriş Ekranı)
-/// **********************************************************************
-/// Bu ekran, kullanıcıların sisteme giriş yapmasını sağlar.
-/// Kullanıcı:
-///   - E-posta adresini girer
-///   - Şifresini girer
-///   - “Şifremi unuttum?” bağlantısıyla şifre sıfırlama ekranına gider
-///   - “Kayıt Ol” bağlantısıyla kayıt ekranına yönlendirilir
-///
-/// Bu sayfa henüz Firebase Authentication’a bağlı değildir.
-/// Firebase kodları ileride eklenecektir.
-/// **********************************************************************
+
+///  LOGIN SCREEN
+/// Bu ekranda:
+/// - Kullanıcı giriş yapabilir
+/// - Şifre sıfırlama ekranına yönlenebilir
+/// - Kayıt ekranına geçiş yapılabilir
+/// - Firebase hata kodları Türkçeye çevrilir
+/// - Şık yükleniyor animasyonu bulunur
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,47 +20,99 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  /// Kullanıcının girdiği e-posta değerini kontrol etmek için TextEditingController
   final TextEditingController emailController = TextEditingController();
-
-  /// Kullanıcının girdiği şifreyi kontrol etmek için TextEditingController
   final TextEditingController passwordController = TextEditingController();
+  final AuthService _authService = AuthService();
+
+  bool isLoading = false; // Buton animasyonu
+
+  /// Firebase hata kodlarını Türkçeye çeviren fonksiyon
+  String getErrorMessage(FirebaseAuthException e) {
+    switch (e.code) {
+      case "user-not-found":
+        return "Bu e-posta adresiyle kayıtlı bir kullanıcı bulunamadı.";
+      case "wrong-password":
+        return "Şifre yanlış! Lütfen tekrar deneyin.";
+      case "invalid-email":
+        return "Geçersiz e-posta formatı.";
+      case "too-many-requests":
+        return "Çok fazla deneme yaptınız. Bir süre sonra tekrar deneyin.";
+      case "network-request-failed":
+        return "İnternet bağlantı hatası.";
+      default:
+        return "Bir hata oluştu. (${e.code})";
+    }
+  }
+
+  /// Kullanıcı giriş fonksiyonu
+  Future<void> loginUser() async {
+    String email = emailController.text.trim();
+    String password = passwordController.text.trim();
+
+    /// Basit kontroller
+    if (email.isEmpty || password.isEmpty) {
+      showMessage("Lütfen tüm alanları doldurun.");
+      return;
+    }
+
+    /// E-posta format kontrolü
+    if (!email.contains("@") || !email.contains(".")) {
+      showMessage("Lütfen geçerli bir e-posta adresi girin.");
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    try {
+      User? user = await _authService.signIn(email, password);
+
+      setState(() => isLoading = false);
+
+      if (user != null) {
+        showMessage("Giriş başarılı!");
+
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        showMessage("e-posta veya şifre hatalı.");
+      }
+    } on FirebaseAuthException catch (e) {
+      setState(() => isLoading = false);
+      showMessage(getErrorMessage(e));
+    }
+  }
+
+  /// Snackbar mesaj gösterme fonksiyonu
+  void showMessage(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      /// Arka plan rengini beyaz yaptık (tasarıma en uygun görünüm)
       backgroundColor: Colors.white,
 
-      /// Sayfanın tüm kenarlarından 24 px boşluk bırakıyoruz
       body: Padding(
         padding: const EdgeInsets.all(24.0),
 
         child: Center(
-          /// Ekran taşarsa (küçük telefonlarda) kaydırılabilmesini sağlar
           child: SingleChildScrollView(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch, // Tüm elemanlar genişliği kaplasın
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+
               children: [
 
-                /// --------------------------------------------------------------
-                ///  BAŞLIK — “Akıllı Kampüs”
-                /// --------------------------------------------------------------
+                /// Başlık
                 const Text(
                   "Akıllı Kampüs",
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
                 ),
 
                 const SizedBox(height: 30),
 
-                /// --------------------------------------------------------------
-                ///  E-POSTA GİRİŞ ALANI
-                /// --------------------------------------------------------------
-                /// controller: kullanıcı ne yazarsa bu controller üzerinden okunur.
+                /// E-posta alanı
                 TextField(
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -74,10 +124,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 16),
 
-                /// --------------------------------------------------------------
-                ///  ŞİFRE GİRİŞ ALANI
-                /// --------------------------------------------------------------
-                /// obscureText: true → Şifre yazılırken gizlenir.
+                /// Şifre alanı
                 TextField(
                   controller: passwordController,
                   obscureText: true,
@@ -89,75 +136,45 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 10),
 
-                /// --------------------------------------------------------------
-                ///  ŞİFREMİ UNUTTUM BAĞLANTISI
-                ///  Kullanıcıyı /reset rotasına yönlendirir.
-                /// --------------------------------------------------------------
+                /// Şifremi unuttum linki
                 Align(
                   alignment: Alignment.centerRight,
                   child: GestureDetector(
-                    onTap: () {
-                      Navigator.pushNamed(context, '/reset');
-                    },
-                    child: const Text(
-                      "Şifremi unuttum?",
-                      style: TextStyle(
-                        color: Colors.blue,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                    onTap: () => Navigator.pushNamed(context, '/reset'),
+                    child: const Text("Şifremi unuttum?", style: TextStyle(color: Colors.blue)),
                   ),
                 ),
 
                 const SizedBox(height: 20),
 
-                /// --------------------------------------------------------------
-                ///  GİRİŞ YAP BUTONU
-                /// --------------------------------------------------------------
-                /// Şu an sadece konsola mesaj yazar.
-                /// Firebase Authentication entegrasyonu ileride eklenecek.
+                /// GİRİŞ BUTONU
                 ElevatedButton(
-                  onPressed: () {
-                    print("🔐 Giriş Yap tıklandı — Firebase login buraya eklenecek");
-                    print("E-posta: ${emailController.text}");
-                    print("Şifre: ${passwordController.text}");
-                  },
+                  onPressed: isLoading ? null : loginUser,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: Colors.deepPurpleAccent.withOpacity(0.15),
-                    foregroundColor: Colors.black87,
+                    backgroundColor: Colors.deepPurple.withOpacity(0.2),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(18),
                     ),
                   ),
-                  child: const Text(
-                    "Giriş Yap",
-                    style: TextStyle(fontSize: 18),
-                  ),
+                  child: isLoading
+                      ? const CircularProgressIndicator(color: Colors.black)
+                      : const Text("Giriş Yap", style: TextStyle(fontSize: 18)),
                 ),
 
                 const SizedBox(height: 20),
 
-                /// --------------------------------------------------------------
-                ///  KAYIT OLMAYA YÖNLENDİREN SATIR
-                /// --------------------------------------------------------------
+                /// Kayıt ekranına geçiş
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text("Hesabın yok mu?"),
                     const SizedBox(width: 5),
-
-                    /// “Kayıt Ol” metnine tıklanınca /register rotasına gider
                     GestureDetector(
-                      onTap: () {
-                        Navigator.pushNamed(context, '/register');
-                      },
+                      onTap: () => Navigator.pushNamed(context, '/register'),
                       child: const Text(
                         "Kayıt Ol",
-                        style: TextStyle(
-                          color: Colors.blue,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
