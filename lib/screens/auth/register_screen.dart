@@ -39,26 +39,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => loading = true);
 
-    final user = await _authService.signUp(email, password);
+    try {
+      final user = await _authService.signUp(email, password);
 
-    if (user != null) {
-      // Firestore’a isim + email kaydı
-      await _firestore.collection("users").doc(user.uid).set({
-        "name": name,
-        "email": email,
-        "createdAt": DateTime.now(),
-      });
+      if (user != null) {
+        // Firestore’a isim + email kaydı
+        await _firestore.collection("users").doc(user.uid).set({
+          "name": name,
+          "email": email,
+          "createdAt": DateTime.now(),
+        });
 
-      showMessage("Kayıt başarılı! Giriş ekranına yönlendiriliyorsunuz...");
+        showMessage("Kayıt başarılı! Giriş ekranına yönlendiriliyorsunuz...");
 
-      await Future.delayed(const Duration(seconds: 1));
+        await Future.delayed(const Duration(milliseconds: 800));
 
-      Navigator.pushReplacementNamed(context, '/login');
-    } else {
-      showMessage("Kayıt başarısız! Bu e-posta zaten kullanılıyor olabilir.");
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, '/login');
+        }
+      } else {
+        showMessage("Kayıt başarısız! Bu e-posta zaten kullanılıyor olabilir.");
+      }
+    } catch (e) {
+      showMessage("Hata oluştu: $e");
     }
 
-    setState(() => loading = false);
+    setState(() => loading = false); // ❗ HER DURUMDA LOADING KAPANIR
   }
 
   /// Snackbar mesaj fonksiyonu
@@ -90,6 +96,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 TextField(
                   controller: nameController,
+                  textCapitalization: TextCapitalization.words, // → Ç, Ş, İ destekler
                   decoration: const InputDecoration(
                     labelText: "Ad Soyad",
                     border: OutlineInputBorder(),
@@ -133,12 +140,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ElevatedButton(
                   onPressed: loading ? null : registerUser,
                   style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16)),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
                   child: loading
                       ? const SizedBox(
                     height: 24,
                     width: 24,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
                   )
                       : const Text("Kaydol", style: TextStyle(fontSize: 18)),
                 ),
