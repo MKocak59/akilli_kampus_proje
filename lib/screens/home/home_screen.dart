@@ -57,7 +57,7 @@ class HomeScreen extends StatelessWidget {
             _menuButton(
               context,
               title: "📢 Bildirim Akışı",
-              route: "/home",
+              route: "/reports",
             ),
 
             _menuButton(
