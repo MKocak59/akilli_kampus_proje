@@ -4,16 +4,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/report_model.dart';
 
 
-///Harita Ekranı
-///Bu ekran:
-///Kampüs içindeki bildirmleri harita üzerinde gösterir
-///Bildirim türüne göre farklı pinler kullanır
-///Pin tıklanınca bilgi penceresi açar
-///
-///Kullanılanlar:
-///Google Maps
-///Reports Koleksiyonu
-///ReportModel
+///  HARİTA EKRANI (MapScreen)
+
+/// Bu ekran:
+/// Kampüs içindeki bildirmleri harita üzerinde gösterir
+/// Bildirim türüne göre farklı renk pinler kullanır
+/// Pin tıklanınca alt bilgi kartı açar
+/// Kartta başlık, tür, tarih ve "Detayı Gör" butonu bulunur
+
+/// Kullanılanlar:
+/// Google Maps
+/// Firestore
+/// ReportModel
 
 
 class MapScreen extends StatefulWidget {
@@ -24,15 +26,18 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  ///Google Map controller
+  /// Google Map controller
   GoogleMapController? mapController;
 
-  ///Haritadaki marker'lar
+  /// Haritadaki marker'lar
   final Set<Marker> _markers = {};
 
-  ///Başlangıç konumu
+  /// Seçilen bildirim (pine tıklanınca atanır)
+  ReportModel? selectedReport;
+
+  /// Başlangıç konumu
   static const LatLng _initialPosition = LatLng(
-    41.015137, // örnek: İstanbul
+    41.015137,
     28.979530,
   );
 
@@ -42,12 +47,14 @@ class _MapScreenState extends State<MapScreen> {
     _loadReportsFromFirestore();
   }
 
-  ///Firestore’dan bildirimleri çekip haritaya pin ekler
+
+  /// Firestore’dan bildirimleri çekip haritaya marker ekler
+
   Future<void> _loadReportsFromFirestore() async {
     final snapshot =
     await FirebaseFirestore.instance.collection("reports").get();
 
-    final markers = <Marker>{};
+    final Set<Marker> loadedMarkers = {};
 
     for (var doc in snapshot.docs) {
       final report = ReportModel.fromMap(
@@ -55,19 +62,22 @@ class _MapScreenState extends State<MapScreen> {
         doc.data(),
       );
 
-      ///Marker oluşturma
-      markers.add(
+      loadedMarkers.add(
         Marker(
           markerId: MarkerId(report.id),
           position: LatLng(report.latitude, report.longitude),
-          infoWindow: InfoWindow(
-            title: report.title,
-            snippet: report.type,
-          ),
+
+          /// Pine tıklanınca alttaki bilgi kartını açar
+          onTap: () {
+            setState(() {
+              selectedReport = report;
+            });
+          },
+
           icon: BitmapDescriptor.defaultMarkerWithHue(
             report.type == "Güvenlik"
                 ? BitmapDescriptor.hueRed
-                : BitmapDescriptor.hueBlue,
+                : BitmapDescriptor.hueGreen,
           ),
         ),
       );
@@ -75,7 +85,7 @@ class _MapScreenState extends State<MapScreen> {
 
     setState(() {
       _markers.clear();
-      _markers.addAll(markers);
+      _markers.addAll(loadedMarkers);
     });
   }
 
@@ -83,19 +93,105 @@ class _MapScreenState extends State<MapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("🗺️ Harita"),
+        title: const Text("🗺 Harita"),
       ),
-      body: GoogleMap(
-        initialCameraPosition: const CameraPosition(
-          target: _initialPosition,
-          zoom: 15,
+
+      /// Stack kullanıyoruz → Harita + Alt bilgi kartı
+      body: Stack(
+        children: [
+          /// GOOGLE MAP
+          GoogleMap(
+            initialCameraPosition: const CameraPosition(
+              target: _initialPosition,
+              zoom: 15,
+            ),
+            onMapCreated: (controller) {
+              mapController = controller;
+            },
+            markers: _markers,
+            myLocationEnabled: true,
+            myLocationButtonEnabled: true,
+
+            /// Haritaya tıklanınca kart kapansın
+            onTap: (_) {
+              setState(() {
+                selectedReport = null;
+              });
+            },
+          ),
+
+          /// ALT BİLGİ KARTI
+          if (selectedReport != null)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _buildInfoCard(context),
+            ),
+        ],
+      ),
+    );
+  }
+
+
+  ///  Pine tıklanınca açılan bilgi kartı
+
+  Widget _buildInfoCard(BuildContext context) {
+    final report = selectedReport!;
+
+    return Card(
+      margin: const EdgeInsets.all(12),
+      elevation: 10,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            /// BAŞLIK
+            Text(
+              report.title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 6),
+
+            /// TÜR
+            Text("Tür: ${report.type}"),
+
+            const SizedBox(height: 6),
+
+            /// TARİH
+            Text(
+              "Oluşturulma: "
+                  "${report.createdAt.day}.${report.createdAt.month}.${report.createdAt.year}",
+              style: const TextStyle(fontSize: 12),
+            ),
+
+            const SizedBox(height: 12),
+
+            /// DETAY BUTONU
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () {
+                  Navigator.pushNamed(
+                    context,
+                    "/report-detail",
+                    arguments: report,
+                  );
+                },
+                child: const Text("Detayı Gör"),
+              ),
+            ),
+          ],
         ),
-        onMapCreated: (controller) {
-          mapController = controller;
-        },
-        markers: _markers,
-        myLocationEnabled: true,
-        myLocationButtonEnabled: true,
       ),
     );
   }
