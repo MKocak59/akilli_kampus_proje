@@ -7,7 +7,7 @@ import 'screens/auth/reset_password_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/report/create_report_screen.dart';
 import 'screens/report/report_list_screen.dart';
-
+import 'screens/map/map_screen.dart';
 
 //firebase ile çalışan main eklendi import 'package:firebase_core/firebase_core.dart';
 //import 'firebase_options.dart'; bunlar için
@@ -45,7 +45,7 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const HomeScreen(),
         '/report': (context) => const CreateReportScreen(),
         '/reports': (context) => const ReportListScreen(),
-
+        '/map': (context) => const MapScreen(),
 
       },
     );
