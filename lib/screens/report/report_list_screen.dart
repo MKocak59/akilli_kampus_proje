@@ -13,6 +13,30 @@ import '../../models/report_model.dart';
 
 class ReportListScreen extends StatelessWidget {
   const ReportListScreen({super.key});
+  /// Bildirim türüne göre ikon döndürür
+  IconData getTypeIcon(String type) {
+    switch (type) {
+      case "Güvenlik":
+        return Icons.security;
+      case "Sağlık":
+        return Icons.health_and_safety;
+      default:
+        return Icons.report;
+    }
+  }
+  /// Bildirim durumuna göre renk döndürür
+  Color getStatusColor(String status) {
+    switch (status) {
+      case "Açık":
+        return Colors.redAccent;
+      case "İnceleniyor":
+        return Colors.orange;
+      case "Çözüldü":
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,26 +92,65 @@ class ReportListScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: ListTile(
+                  /// 🔹 TÜR İKONU
+                  leading: Icon(
+                    getTypeIcon(report.type),
+                    color: Colors.deepPurple,
+                  ),
+
+                  /// 🔹 BAŞLIK
                   title: Text(
                     report.title,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+
+                  /// 🔹 ALT BİLGİLER
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 4),
+
+                      /// Açıklama
                       Text(report.description),
+
                       const SizedBox(height: 6),
-                      Text(
-                        "Tür: ${report.type} • Durum: ${report.status}",
-                        style: const TextStyle(fontSize: 12),
+
+                      /// Tarih + Durum
+                      Row(
+                        children: [
+                          /// Oluşturulma zamanı
+                          Text(
+                            "${report.createdAt.day}.${report.createdAt.month}.${report.createdAt.year}",
+                            style: const TextStyle(fontSize: 12),
+                          ),
+
+                          const SizedBox(width: 10),
+
+                          /// Durum etiketi
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: getStatusColor(report.status),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              report.status,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 14),
                 ),
+
               );
             },
           );
