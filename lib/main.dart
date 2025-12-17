@@ -47,6 +47,7 @@ class MyApp extends StatelessWidget {
         '/report': (context) => const CreateReportScreen(),
         '/reports': (context) => const ReportListScreen(),
         '/map': (context) => const MapScreen(),
+        '/profile': (context) => const ProfileScreen(),
 
       },
     );
