@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/report_model.dart';
-
+import 'report_detail_screen.dart';
 /// ****************************************************
 ///  REPORT LIST SCREEN (Bildirim Akışı)
 /// ****************************************************
@@ -183,6 +183,16 @@ class _ReportListScreenState extends State<ReportListScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: ListTile(
+                        //TIKLAMA ÖZELLİĞİ
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ReportDetailScreen(report: report),
+                            ),
+                          );
+                        },
+
                         /// 🔹 TÜR İKONU
                         leading: Icon(
                           getTypeIcon(report.type),
