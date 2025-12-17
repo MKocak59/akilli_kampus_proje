@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart'; // 📍 BU EKLENDİ
+import 'package:geolocator/geolocator.dart';
 import '../../models/report_model.dart';
 import 'location_selection_screen.dart';
 
@@ -20,14 +20,14 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
   String selectedType = "Güvenlik";
   bool loading = false;
 
-  // 📍 Seçilen Konum Verileri
+  // Seçilen Konum Verileri
   double? selectedLat;
   double? selectedLng;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // 📍 Haritadan Seçme Fonksiyonu
+  // Haritadan Seçme Fonksiyonu
   Future<void> _pickLocation() async {
     final LatLng? result = await Navigator.push(
       context,

@@ -1,54 +1,143 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/report_model.dart';
 
-class ReportDetailScreen extends StatelessWidget {
+class ReportDetailScreen extends StatefulWidget {
   final ReportModel report;
 
   const ReportDetailScreen({super.key, required this.report});
 
-  // Tür'e göre ikon seçimi
+  @override
+  State<ReportDetailScreen> createState() => _ReportDetailScreenState();
+}
+
+class _ReportDetailScreenState extends State<ReportDetailScreen> {
+  // 🔥 Takip durumu (Başlangıçta false)
+  bool isFollowing = false;
+  bool isLoading = false; // Butona basınca dönen loading
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkIfFollowing();
+  }
+
+  /// 🔍 Başlangıçta takip edip etmediğini kontrol et
+  void _checkIfFollowing() {
+    final user = _auth.currentUser;
+    if (user != null) {
+      setState(() {
+        // ReportModel içindeki followers listesinde benim ID'm var mı?
+        isFollowing = widget.report.followers.contains(user.uid);
+      });
+    }
+  }
+
+  /// 🖱️ Takip Et / Bırak Butonuna Basınca Çalışır
+  Future<void> _toggleFollow() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    setState(() => isLoading = true);
+
+    try {
+      if (isFollowing) {
+        // ❌ Takipten Çık (Listeden sil)
+        await _firestore.collection('reports').doc(widget.report.id).update({
+          'followers': FieldValue.arrayRemove([user.uid])
+        });
+
+        if (mounted) {
+          setState(() {
+            isFollowing = false;
+            // Modeli de güncelleyelim ki ekran tutarlı kalsın
+            widget.report.followers.remove(user.uid);
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Takipten çıkıldı.")),
+          );
+        }
+      } else {
+        // ✅ Takip Et (Listeye ekle)
+        await _firestore.collection('reports').doc(widget.report.id).update({
+          'followers': FieldValue.arrayUnion([user.uid])
+        });
+
+        if (mounted) {
+          setState(() {
+            isFollowing = true;
+            widget.report.followers.add(user.uid);
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Bildirim takip ediliyor!")),
+          );
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Hata: $e")),
+      );
+    }
+
+    if (mounted) setState(() => isLoading = false);
+  }
+
+  // --- Tasarım Kodları (Öncekiyle Aynı) ---
+
   IconData _getTypeIcon(String type) {
     if (type == "Sağlık") return Icons.health_and_safety;
     return Icons.security;
   }
 
-  // Tür'e göre renk seçimi
   Color _getTypeColor(String type) {
     if (type == "Sağlık") return Colors.redAccent;
     return Colors.blueAccent;
   }
 
-  // Tarih formatlayıcı (Basit yöntem)
   String _formatDate(DateTime date) {
     return "${date.day}.${date.month}.${date.year} • ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
   }
 
   @override
   Widget build(BuildContext context) {
-    // Harita için başlangıç konumu (Bildirimin konumu)
-    final LatLng reportLocation = LatLng(report.latitude, report.longitude);
+    final LatLng reportLocation = LatLng(widget.report.latitude, widget.report.longitude);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text("Bildirim Detayı"),
       ),
+
+      // 🔥 YENİ EKLENEN BUTON: TAKİP ET
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: isLoading ? null : _toggleFollow,
+        backgroundColor: isFollowing ? Colors.grey : Colors.deepPurple,
+        icon: isLoading
+            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+            : Icon(isFollowing ? Icons.bookmark_remove : Icons.bookmark_add),
+        label: Text(isFollowing ? "Takipten Çık" : "Takip Et"),
+      ),
+
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            /// 1. ÜST BİLGİ KARTI (TÜR VE DURUM)
+            /// 1. ÜST BİLGİ KARTI
             Container(
-              color: _getTypeColor(report.type).withOpacity(0.1),
+              color: _getTypeColor(widget.report.type).withOpacity(0.1),
               padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
                   CircleAvatar(
                     radius: 24,
-                    backgroundColor: _getTypeColor(report.type).withOpacity(0.2),
+                    backgroundColor: _getTypeColor(widget.report.type).withOpacity(0.2),
                     child: Icon(
-                      _getTypeIcon(report.type),
-                      color: _getTypeColor(report.type),
+                      _getTypeIcon(widget.report.type),
+                      color: _getTypeColor(widget.report.type),
                       size: 28,
                     ),
                   ),
@@ -58,9 +147,9 @@ class ReportDetailScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          report.type.toUpperCase(),
+                          widget.report.type.toUpperCase(),
                           style: TextStyle(
-                            color: _getTypeColor(report.type),
+                            color: _getTypeColor(widget.report.type),
                             fontWeight: FontWeight.bold,
                             fontSize: 12,
                             letterSpacing: 1.2,
@@ -68,7 +157,7 @@ class ReportDetailScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          report.status,
+                          widget.report.status,
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
@@ -78,14 +167,13 @@ class ReportDetailScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // Tarih Bilgisi
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       const Icon(Icons.access_time, size: 16, color: Colors.grey),
                       const SizedBox(height: 4),
                       Text(
-                        _formatDate(report.createdAt),
+                        _formatDate(widget.report.createdAt),
                         style: const TextStyle(
                           fontSize: 12,
                           color: Colors.grey,
@@ -104,41 +192,15 @@ class ReportDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    "Konu",
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  const Text("Konu", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  Text(
-                    report.title,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
+                  Text(widget.report.title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
+
                   const SizedBox(height: 24),
-                  const Text(
-                    "Açıklama",
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+
+                  const Text("Açıklama", style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  Text(
-                    report.description,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      height: 1.5,
-                      color: Colors.black87,
-                    ),
-                  ),
+                  Text(widget.report.description, style: const TextStyle(fontSize: 16, height: 1.5, color: Colors.black87)),
                 ],
               ),
             ),
@@ -155,48 +217,30 @@ class ReportDetailScreen extends StatelessWidget {
                     children: [
                       Icon(Icons.location_on, color: Colors.redAccent),
                       SizedBox(width: 8),
-                      Text(
-                        "Olay Konumu",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      Text("Olay Konumu", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     ],
                   ),
                   const SizedBox(height: 16),
 
-                  // Harita Kutusu
                   Container(
-                    height: 250, // Haritanın yüksekliği
+                    height: 250,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.grey.shade300),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        )
-                      ],
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(16),
                       child: GoogleMap(
-                        initialCameraPosition: CameraPosition(
-                          target: reportLocation,
-                          zoom: 15, // Yakınlaştırma seviyesi
-                        ),
-                        // Harita üzerindeki kontrolleri kapatalım, sadece görüntü olsun
+                        initialCameraPosition: CameraPosition(target: reportLocation, zoom: 15),
                         zoomControlsEnabled: false,
-                        scrollGesturesEnabled: false, // Sayfayı kaydırırken harita kaymasın diye
+                        scrollGesturesEnabled: false,
                         rotateGesturesEnabled: false,
-                        liteModeEnabled: false, // Android'de daha performanslı çalışması için true yapılabilir ama marker görünmeyebilir bazen
+                        liteModeEnabled: false,
                         markers: {
                           Marker(
                             markerId: const MarkerId("report_loc"),
                             position: reportLocation,
-                            infoWindow: InfoWindow(title: report.title),
+                            infoWindow: InfoWindow(title: widget.report.title),
                           ),
                         },
                       ),
@@ -204,9 +248,12 @@ class ReportDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    "Koordinatlar: ${report.latitude.toStringAsFixed(5)}, ${report.longitude.toStringAsFixed(5)}",
+                    "Koordinatlar: ${widget.report.latitude.toStringAsFixed(5)}, ${widget.report.longitude.toStringAsFixed(5)}",
                     style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                   ),
+
+                  // FAB butonunun altı boş kalsın diye boşluk
+                  const SizedBox(height: 80),
                 ],
               ),
             ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/report_model.dart';
+import '../report/report_detail_screen.dart';
 
 
 ///  HARİTA EKRANI (MapScreen)
@@ -137,6 +138,7 @@ class _MapScreenState extends State<MapScreen> {
   ///  Pine tıklanınca açılan bilgi kartı
 
   Widget _buildInfoCard(BuildContext context) {
+    // Seçili raporun null olmadığından emin olalım
     final report = selectedReport!;
 
     return Card(
@@ -151,6 +153,7 @@ class _MapScreenState extends State<MapScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+
             /// BAŞLIK
             Text(
               report.title,
@@ -169,9 +172,9 @@ class _MapScreenState extends State<MapScreen> {
 
             /// TARİH
             Text(
-              "Oluşturulma: "
-                  "${report.createdAt.day}.${report.createdAt.month}.${report.createdAt.year}",
-              style: const TextStyle(fontSize: 12),
+              "Oluşturulma: ${report.createdAt.day}.${report.createdAt
+                  .month}.${report.createdAt.year}",
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
 
             const SizedBox(height: 12),
@@ -180,11 +183,14 @@ class _MapScreenState extends State<MapScreen> {
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
+                // 🔥 GÜNCELLENEN KISIM BURASI 🔥
                 onPressed: () {
-                  Navigator.pushNamed(
+                  // Detay sayfasına git ve seçilen raporu yanına al
+                  Navigator.push(
                     context,
-                    "/report-detail",
-                    arguments: report,
+                    MaterialPageRoute(
+                      builder: (context) => ReportDetailScreen(report: report),
+                    ),
                   );
                 },
                 child: const Text("Detayı Gör"),
