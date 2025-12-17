@@ -20,14 +20,14 @@ class _CreateReportScreenState extends State<CreateReportScreen> {
   String selectedType = "Güvenlik";
   bool loading = false;
 
-  // 📍 Seçilen Konum Verileri
+  // Seçilen Konum Verileri
   double? selectedLat;
   double? selectedLng;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // 📍 Haritadan Seçme Fonksiyonu
+  // Haritadan Seçme Fonksiyonu
   Future<void> _pickLocation() async {
     final LatLng? result = await Navigator.push(
       context,
