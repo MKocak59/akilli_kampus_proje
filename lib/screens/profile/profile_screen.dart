@@ -90,6 +90,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 24),
 
+            /// 🔥 BURASI EKLENECEK: Sadece Admin ise Buton Göster
+            if (userData?['role'] == 'admin') ...[
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/admin');
+                },
+                icon: const Icon(Icons.admin_panel_settings),
+                label: const Text("YÖNETİCİ PANELİNE GİT"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.indigo,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.all(16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+
             /// 2. BİLDİRİM AYARLARI
             const Text(
               "Bildirim Ayarları",
