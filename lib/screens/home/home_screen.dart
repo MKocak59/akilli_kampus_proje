@@ -1,114 +1,210 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:akilli_kampus_proje/services/auth_service.dart';
+// Rapor detayı importunu kaldırdık çünkü burada artık rapora tıklanmayacak.
 
-///  HOME SCREEN (Ana Sayfa)
-/// Kullanıcı giriş yaptıktan sonra yönlendirilen ekrandır.
-/// Bu ekranda
-/// - Kullanıcının email adresi gösterilir.
-/// - Menü butonları bulunur.
-/// - Bildirim akışı / harita / bildirim oluşturma / profil gibi ekranlara geçilir.
-/// - Sağ üstte çıkış var
-
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    /// Firebase üzerinden o anda giriş yapan kullanıcıyı alıyoruz
-    final User? user = FirebaseAuth.instance.currentUser;
+  State<HomeScreen> createState() => _HomeScreenState();
+}
 
+class _HomeScreenState extends State<HomeScreen> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Akıllı Kampüs"),
+        title: const Text("Akıllı Kampüs", style: TextStyle(fontWeight: FontWeight.bold)),
+        centerTitle: true,
         actions: [
-          /// ÇIKIŞ İKONU
+          // Bildirimler Sayfasına Giden Zil Butonu
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await AuthService().signOut();
-              Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+            icon: const Icon(Icons.notifications),
+            onPressed: () {
+              Navigator.pushNamed(context, '/notifications');
             },
           ),
         ],
       ),
 
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      // YAN MENÜ (Buradan raporlara gidilebilir)
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
           children: [
-
-            /// 📌 Hoş geldin yazısı — satır kaymasını önledik
-            Text(
-              "Hoş geldin, ${user?.email ?? 'Kullanıcı'}",
-              maxLines: 1, // ✔ Tek satır ile sınırla
-              overflow: TextOverflow.ellipsis, // ✔ Taşınca ... ile göster
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+            const DrawerHeader(
+              decoration: BoxDecoration(color: Colors.deepPurple),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.school, color: Colors.white, size: 50),
+                  SizedBox(height: 10),
+                  Text("Akıllı Kampüs", style: TextStyle(color: Colors.white, fontSize: 20)),
+                ],
               ),
             ),
-
-            const SizedBox(height: 30),
-
-            /// ANA MENÜ BUTONLARI
-            _menuButton(
-              context,
-              title: "📢 Bildirim Akışı",
-              route: "/reports",
-            ),
-
-            _menuButton(
-              context,
-              title: "🗺️ Harita",
-              route: "/map",
-            ),
-
-            _menuButton(
-              context,
-              title: "➕ Yeni Bildirim Oluştur",
-              route: "/report",
-            ),
-
-            _menuButton(
-              context,
-              title: "👤 Profil",
-              route: "/profile",
-            ),
+            _menuButton(context, title: "👤 Profil", route: "/profile"),
+            _menuButton(context, title: "🗺️ Harita", route: "/map"),
+            _menuButton(context, title: "📋 Bildirim Akışı", route: "/reports"),
+            _menuButton(context, title: "📢 Bildirim Oluştur", route: "/report"),
           ],
+        ),
+      ),
+
+      body: Column(
+        children: [
+          /// 🔥 1. BÖLÜM: EN SON DUYURU (Banner)
+          _buildAnnouncementBanner(),
+
+          /// 2. BÖLÜM: DUYURU GEÇMİŞİ LİSTESİ (Raporlar kalktı, burası geldi)
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _firestore
+                  .collection('announcements') // Artık raporları değil duyuruları çekiyoruz
+                  .orderBy('createdAt', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text("Henüz yayınlanmış bir duyuru yok.", style: TextStyle(color: Colors.grey)));
+                }
+
+                final announcements = snapshot.data!.docs;
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: announcements.length,
+                  itemBuilder: (context, index) {
+                    var data = announcements[index].data() as Map<String, dynamic>;
+                    // Banner'da gösterilen en son duyuruyu listede tekrar göstermeyelim (isteğe bağlı)
+                    // if (index == 0) return const SizedBox.shrink();
+
+                    return _buildAnnouncementCard(data);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+
+      // Şikayet Oluştur Butonu (Hızlı erişim için kalabilir veya kaldırabilirsin)
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.pushNamed(context, '/report');
+        },
+        label: const Text("Bildirim Oluştur"),
+        icon: const Icon(Icons.add_alert),
+        backgroundColor: Colors.redAccent,
+        foregroundColor: Colors.white,
+      ),
+    );
+  }
+
+  /// 📢 BANNER: En son ve acil duyuru
+  Widget _buildAnnouncementBanner() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _firestore
+          .collection('announcements')
+          .orderBy('createdAt', descending: true)
+          .limit(1)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        var data = snapshot.data!.docs.first.data() as Map<String, dynamic>;
+        String title = data['title'] ?? "Duyuru";
+        String message = data['message'] ?? "";
+
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.red.shade50,
+            border: Border.all(color: Colors.redAccent, width: 2),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.red.withOpacity(0.2),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
+              )
+            ],
+          ),
+          child: Column(
+            children: [
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.campaign, color: Colors.red, size: 32),
+                  SizedBox(width: 10),
+                  Text(
+                    "ÖNEMLİ DUYURU",
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 18,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(color: Colors.redAccent, height: 20),
+              Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                style: const TextStyle(fontSize: 16, color: Colors.black87),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// 📝 LİSTE KARTI: Geçmiş Duyurular için tasarım
+  Widget _buildAnnouncementCard(Map<String, dynamic> data) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Colors.orange.shade100,
+          child: const Icon(Icons.info_outline, color: Colors.orange),
+        ),
+        title: Text(
+          data['title'] ?? "Başlık Yok",
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          data['message'] ?? "",
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
       ),
     );
   }
 
-  /// 📌 Menü Butonu Oluşturan Widget
-  Widget _menuButton(BuildContext context,
-      {required String title, required String route}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: ElevatedButton(
-        onPressed: () {
-          Navigator.pushNamed(context, route);
-        },
-
-        /// ⭐ YENİ BUTON TASARIMI BURADA
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-          backgroundColor: Colors.deepPurpleAccent.withOpacity(0.1),
-          foregroundColor: Colors.black87,
-          elevation: 0, // gölgeyi kaldır
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-
-        child: Text(
-          title,
-          style: const TextStyle(fontSize: 18),
-        ),
-      ),
+  Widget _menuButton(BuildContext context, {required String title, required String route}) {
+    return ListTile(
+      title: Text(title),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+      onTap: () => Navigator.pushNamed(context, route),
     );
   }
 }
