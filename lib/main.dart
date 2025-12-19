@@ -1,3 +1,4 @@
+import 'package:akilli_kampus_proje/screens/home/notifications_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import 'screens/report/report_list_screen.dart';
 import 'screens/map/map_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/admin/admin_panel_screen.dart';
+import 'screens/home/notifications_screen.dart';
 
 //firebase ile çalışan main eklendi import 'package:firebase_core/firebase_core.dart';
 //import 'firebase_options.dart'; bunlar için
@@ -50,6 +52,7 @@ class MyApp extends StatelessWidget {
         '/map': (context) => const MapScreen(),
         '/profile': (context) => const ProfileScreen(),
         '/admin': (context) => const AdminPanelScreen(),
+        '/notifications': (context) => const NotificationsScreen(),
       },
     );
 

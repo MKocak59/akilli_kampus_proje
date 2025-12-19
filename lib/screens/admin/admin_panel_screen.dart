@@ -50,10 +50,44 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
       leading: Icon(Icons.circle, color: color),
       title: Text(status),
       onTap: () async {
-        // Firestore'da güncelle
-        await _firestore.collection('reports').doc(report.id).update({'status': status});
-        if (mounted) Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Durum '$status' olarak güncellendi.")));
+        Navigator.pop(context); // Dialog'u kapat
+
+        try {
+          // 1. Durumu Güncelle
+          await _firestore.collection('reports').doc(report.id).update({'status': status});
+
+          DocumentSnapshot freshDoc = await _firestore.collection('reports').doc(report.id).get();
+          List<dynamic> freshFollowers = freshDoc.get('followers') ?? [];
+
+          // 2. Eğer takipçi varsa bildirim gönder
+          if (freshFollowers.isNotEmpty) {
+            WriteBatch batch = _firestore.batch();
+
+            for (var userId in freshFollowers) {
+              DocumentReference notifRef = _firestore.collection('user_notifications').doc();
+              batch.set(notifRef, {
+                'userId': userId,
+                'title': 'Bildirim Güncellemesi',
+                'message': '"${report.title}" bildiriminin durumu "$status" olarak güncellendi.',
+                'isRead': false,
+                'createdAt': FieldValue.serverTimestamp(),
+                'reportId': report.id,
+              });
+            }
+            await batch.commit();
+          }
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Durum güncellendi. (${freshFollowers.length} kişiye bildirim gitti)")),
+            );
+          }
+
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Hata: $e")),
+          );
+        }
       },
     );
   }

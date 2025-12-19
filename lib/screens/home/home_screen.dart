@@ -92,17 +92,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-
-      // Şikayet Oluştur Butonu (Hızlı erişim için kalabilir veya kaldırabilirsin)
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.pushNamed(context, '/report');
-        },
-        label: const Text("Bildirim Oluştur"),
-        icon: const Icon(Icons.add_alert),
-        backgroundColor: Colors.redAccent,
-        foregroundColor: Colors.white,
-      ),
     );
   }
 
